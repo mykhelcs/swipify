@@ -19,54 +19,80 @@ def client():
 class TestAiChatRoute:
     """Tests for POST /ai/chat endpoint."""
 
-    def test_missing_user_id(self, client):
+    def test_missing_user_id(self, client, mock_firebase_auth):
         """Should return 422 when user_id is missing."""
-        response = client.post("/ai/chat", json={"message": "hello"})
+        mock_firebase_auth.return_value = {"uid": "test123"}
+        response = client.post(
+            "/ai/chat",
+            headers={"Authorization": "Bearer fake_token"},
+            json={"message": "hello"}
+        )
         assert response.status_code == 422
 
-    def test_missing_message(self, client):
+    def test_missing_message(self, client, mock_firebase_auth):
         """Should return 422 when message is missing."""
-        response = client.post("/ai/chat", json={"user_id": "test123"})
+        mock_firebase_auth.return_value = {"uid": "test123"}
+        response = client.post(
+            "/ai/chat",
+            headers={"Authorization": "Bearer fake_token"},
+            json={"user_id": "test123"}
+        )
         assert response.status_code == 422
 
-    def test_message_too_long(self, client):
+    def test_message_too_long(self, client, mock_firebase_auth):
         """Should return 400 when message exceeds 2000 chars."""
-        response = client.post("/ai/chat", json={
-            "user_id": "test123",
-            "message": "x" * 2001,
-        })
+        mock_firebase_auth.return_value = {"uid": "test123"}
+        response = client.post(
+            "/ai/chat",
+            headers={"Authorization": "Bearer fake_token"},
+            json={
+                "user_id": "test123",
+                "message": "x" * 2001,
+            }
+        )
         assert response.status_code == 400
 
-    @patch("app.services.ai_chat_service.chat_with_ai")
-    def test_successful_chat(self, mock_chat, client):
+    @patch("app.routes.ai_chat.chat_with_ai")
+    def test_successful_chat(self, mock_chat, client, mock_firebase_auth):
         """Should return AI reply on success."""
+        mock_firebase_auth.return_value = {"uid": "test123"}
         mock_chat.return_value = {
             "reply": "I can help with that!",
             "ticket_id": None,
         }
-        response = client.post("/ai/chat", json={
-            "user_id": "test123",
-            "message": "Where is my order?",
-        })
+        response = client.post(
+            "/ai/chat",
+            headers={"Authorization": "Bearer fake_token"},
+            json={
+                "user_id": "test123",
+                "message": "Where is my order?",
+            }
+        )
         assert response.status_code == 200
         data = response.json()
         assert "reply" in data
         assert data["ticket_id"] is None
 
-    @patch("app.services.ai_chat_service.chat_with_ai")
-    def test_chat_with_ticket_creation(self, mock_chat, client):
+    @patch("app.routes.ai_chat.chat_with_ai")
+    def test_chat_with_ticket_creation(self, mock_chat, client, mock_firebase_auth):
         """Should return ticket_id when AI creates a ticket."""
+        mock_firebase_auth.return_value = {"uid": "test123"}
         mock_chat.return_value = {
             "reply": "Your ticket has been created!",
             "ticket_id": "abc12345-test",
         }
-        response = client.post("/ai/chat", json={
-            "user_id": "test123",
-            "message": "Yes, create a ticket for my refund issue",
-        })
+        response = client.post(
+            "/ai/chat",
+            headers={"Authorization": "Bearer fake_token"},
+            json={
+                "user_id": "test123",
+                "message": "Yes, create a ticket for my refund issue",
+            }
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["ticket_id"] == "abc12345-test"
+
 
 
 class TestAiChatService:

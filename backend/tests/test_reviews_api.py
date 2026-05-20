@@ -157,8 +157,10 @@ class TestGetProductReviews:
 class TestCreateReviewUpdatesProduct:
     """Tests for POST /reviews — product average_rating + total_reviews update."""
 
-    def test_updates_product_stats_on_review_creation(self, client, mock_reviews_db):
+    def test_updates_product_stats_on_review_creation(self, client, mock_reviews_db, mock_firebase_auth):
         """After creating a review, the product's average_rating and total_reviews should update."""
+        mock_firebase_auth.return_value = {"uid": "user_abc"}
+        
         order_doc = MagicMock()
         order_doc.exists = True
         order_doc.to_dict.return_value = {"user_id": "user_abc"}
@@ -176,6 +178,11 @@ class TestCreateReviewUpdatesProduct:
         all_reviews_query.get.return_value = [existing_review_doc]
 
         product_ref = MagicMock()
+        product_ref.get.return_value.exists = True
+        product_ref.get.return_value.to_dict.return_value = {
+            "average_rating": 4.0,
+            "total_reviews": 1
+        }
 
         def collection_router(name):
             mock_coll = MagicMock()
@@ -200,17 +207,23 @@ class TestCreateReviewUpdatesProduct:
 
         mock_reviews_db.collection.side_effect = collection_router
 
-        response = client.post("/reviews", json={
-            "user_id": "user_abc",
-            "product_id": "prod_123",
-            "order_id": "ord_001",
-            "rating": 5,
-            "comment": "Excellent!",
-            "image_urls": [],
-        })
+        response = client.post(
+            "/reviews",
+            headers={"Authorization": "Bearer fake_token"},
+            json={
+                "user_id": "user_abc",
+                "product_id": "prod_123",
+                "order_id": "ord_001",
+                "rating": 5,
+                "comment": "Excellent!",
+                "image_urls": [],
+            }
+        )
 
         assert response.status_code == 200
-        product_ref.update.assert_called_once()
-        update_args = product_ref.update.call_args[0][0]
-        assert "average_rating" in update_args
-        assert "total_reviews" in update_args
+        mock_reviews_db.transaction.return_value.update.assert_called_once_with(
+            product_ref,
+            {"average_rating": 4.5, "total_reviews": 2}
+        )
+
+

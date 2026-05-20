@@ -24,7 +24,7 @@ def test_paymongo_webhook_payment_paid(test_client):
         mock_verify.return_value = True
         
         with patch("app.routes.payments.create_order_service") as mock_create_order, \
-             patch("app.routes.payments.db.collection") as mock_db_collection:
+             patch("app.routes.payments.db") as mock_db:
              
             # Mock session lookup
             mock_session_doc = MagicMock()
@@ -56,14 +56,14 @@ def test_paymongo_webhook_payment_paid(test_client):
                     }
                 ]
             }
-            mock_db_collection.return_value.document.return_value.get.return_value = mock_session_doc
+            mock_db.collection.return_value.document.return_value.get.return_value = mock_session_doc
             
             # Mock order creation
             mock_create_order.return_value = {"id": "order_abc"}
             
             # Mock document update
             mock_update = MagicMock()
-            mock_db_collection.return_value.document.return_value.update = mock_update
+            mock_db.collection.return_value.document.return_value.update = mock_update
 
             response = test_client.post(
                 "/payments/webhook",

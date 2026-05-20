@@ -30,6 +30,19 @@ def get_current_user(res: HTTPAuthorizationCredentials = Security(security)) -> 
             detail=f"Invalid or expired token: {str(e)}"
         )
 
+def get_current_user_id(user: dict = Depends(get_current_user)) -> str:
+    """
+    Dependency that extracts the uid from the current authenticated user token.
+    """
+    uid = user.get("uid")
+    if not uid:
+        raise HTTPException(
+            status_code=401,
+            detail="User ID not found in token."
+        )
+    return uid
+
+
 def require_role(allowed_roles: list):
     """
     Dependency factory to restrict access based on user roles.

@@ -81,6 +81,8 @@ async def create_payment_session(request: PaymentCreateRequest, token: dict = De
 
         return source_data
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[PAYMENT CREATE ERROR] {e}")
         raise HTTPException(status_code=500, detail=str(e))
